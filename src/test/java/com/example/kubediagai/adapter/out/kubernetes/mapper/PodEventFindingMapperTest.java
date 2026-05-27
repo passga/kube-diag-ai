@@ -1,4 +1,4 @@
-package com.example.kubediagai.adapter.out.kubernetes;
+package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,29 +10,23 @@ import io.fabric8.kubernetes.api.model.PodBuilder;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class Fabric8PodEventCollectorTest {
+class PodEventFindingMapperTest {
+
+    private final PodEventFindingMapper mapper = new PodEventFindingMapper();
 
     @Test
     void mapsWarningEventToWarningFinding() {
-        var pod = new PodBuilder()
-                .withNewMetadata()
-                .withUid("pod-uid")
-                .endMetadata()
-                .build();
+        var pod = pod("pod-uid");
         var event = new EventBuilder()
                 .withType("Warning")
                 .withReason("BackOff")
                 .withMessage("Back-off restarting failed container")
                 .withCount(3)
                 .withLastTimestamp("2026-05-27T09:00:00Z")
-                .withInvolvedObject(new ObjectReferenceBuilder()
-                        .withKind("Pod")
-                        .withName("pod-crashloop")
-                        .withUid("pod-uid")
-                        .build())
+                .withInvolvedObject(involvedPod("pod-uid"))
                 .build();
 
-        List<ClusterFinding> findings = Fabric8PodEventCollector.mapEvents(List.of(event), pod);
+        List<ClusterFinding> findings = mapper.map(List.of(event), pod);
 
         assertThat(findings).singleElement().satisfies(finding -> {
             assertThat(finding.severity()).isEqualTo(Severity.WARNING);
@@ -43,23 +37,14 @@ class Fabric8PodEventCollectorTest {
 
     @Test
     void mapsNormalEventToInfoFinding() {
-        var pod = new PodBuilder()
-                .withNewMetadata()
-                .withUid("pod-uid")
-                .endMetadata()
-                .build();
         var event = new EventBuilder()
                 .withType("Normal")
                 .withReason("Pulled")
                 .withMessage("Successfully pulled image")
-                .withInvolvedObject(new ObjectReferenceBuilder()
-                        .withKind("Pod")
-                        .withName("pod-ok")
-                        .withUid("pod-uid")
-                        .build())
+                .withInvolvedObject(involvedPod("pod-uid"))
                 .build();
 
-        List<ClusterFinding> findings = Fabric8PodEventCollector.mapEvents(List.of(event), pod);
+        List<ClusterFinding> findings = mapper.map(List.of(event), pod("pod-uid"));
 
         assertThat(findings).singleElement().satisfies(finding -> {
             assertThat(finding.severity()).isEqualTo(Severity.INFO);
@@ -69,25 +54,32 @@ class Fabric8PodEventCollectorTest {
 
     @Test
     void ignoresEventsForPreviousPodInstancesWhenUidIsAvailable() {
-        var pod = new PodBuilder()
-                .withNewMetadata()
-                .withUid("current-uid")
-                .endMetadata()
-                .build();
         var event = new EventBuilder()
                 .withReason("BackOff")
-                .withInvolvedObject(new ObjectReferenceBuilder()
-                        .withKind("Pod")
-                        .withName("pod-crashloop")
-                        .withUid("old-uid")
-                        .build())
+                .withInvolvedObject(involvedPod("old-uid"))
                 .build();
 
-        List<ClusterFinding> findings = Fabric8PodEventCollector.mapEvents(List.of(event), pod);
+        List<ClusterFinding> findings = mapper.map(List.of(event), pod("current-uid"));
 
         assertThat(findings).singleElement().satisfies(finding -> {
             assertThat(finding.severity()).isEqualTo(Severity.INFO);
             assertThat(finding.message()).isEqualTo("No pod events found");
         });
+    }
+
+    private static io.fabric8.kubernetes.api.model.Pod pod(String uid) {
+        return new PodBuilder()
+                .withNewMetadata()
+                .withUid(uid)
+                .endMetadata()
+                .build();
+    }
+
+    private static io.fabric8.kubernetes.api.model.ObjectReference involvedPod(String uid) {
+        return new ObjectReferenceBuilder()
+                .withKind("Pod")
+                .withName("pod")
+                .withUid(uid)
+                .build();
     }
 }

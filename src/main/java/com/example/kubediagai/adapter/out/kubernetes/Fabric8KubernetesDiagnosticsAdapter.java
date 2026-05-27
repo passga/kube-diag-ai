@@ -1,6 +1,9 @@
 package com.example.kubediagai.adapter.out.kubernetes;
 
 import com.example.kubediagai.application.port.out.KubernetesDiagnosticsPort;
+import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodEventCollector;
+import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodLogCollector;
+import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8PodToClusterFindingMapper;
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.PodDiagnosticCommand;
 import com.example.kubediagai.domain.Severity;

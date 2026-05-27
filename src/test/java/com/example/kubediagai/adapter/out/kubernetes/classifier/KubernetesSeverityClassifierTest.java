@@ -1,4 +1,4 @@
-package com.example.kubediagai.adapter.out.kubernetes;
+package com.example.kubediagai.adapter.out.kubernetes.classifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

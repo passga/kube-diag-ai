@@ -1,10 +1,10 @@
-package com.example.kubediagai.adapter.out.kubernetes;
+package com.example.kubediagai.adapter.out.kubernetes.classifier;
 
 import com.example.kubediagai.domain.Severity;
 
-class KubernetesSeverityClassifier {
+public class KubernetesSeverityClassifier {
 
-    Severity classifyPhase(String phase) {
+    public Severity classifyPhase(String phase) {
         return switch (phase) {
             case "Failed" -> Severity.CRITICAL;
             case "Pending", "Unknown" -> Severity.WARNING;
@@ -12,7 +12,7 @@ class KubernetesSeverityClassifier {
         };
     }
 
-    Severity classifyWaitingReason(String reason) {
+    public Severity classifyWaitingReason(String reason) {
         return switch (reason) {
             case "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull" -> Severity.CRITICAL;
             case "ContainerCreating", "PodInitializing" -> Severity.INFO;
