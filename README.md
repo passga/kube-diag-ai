@@ -185,6 +185,26 @@ curl -X POST http://localhost:8080/api/pods/diagnose \
   }'
 ```
 
+## API Documentation
+
+Start the application locally:
+
+```bash
+make run
+```
+
+Then open Swagger UI in a browser:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+The OpenAPI JSON document is available at:
+
+```text
+http://localhost:8080/v3/api-docs
+```
+
 ## Target Deployment Architecture
 
 The planned deployment path is:
