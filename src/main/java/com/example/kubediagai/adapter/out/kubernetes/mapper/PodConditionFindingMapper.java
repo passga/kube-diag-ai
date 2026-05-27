@@ -16,7 +16,6 @@ public class PodConditionFindingMapper {
 
         return pod.getStatus().getConditions().stream()
                 .filter(condition -> !"True".equals(condition.getStatus()))
-                .filter(condition -> !"PodScheduled".equals(condition.getType()))
                 .map(this::map)
                 .toList();
     }

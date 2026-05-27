@@ -33,4 +33,27 @@ class PodConditionFindingMapperTest {
                     assertThat(finding.details()).contains("ContainersNotReady");
                 });
     }
+
+    @Test
+    void reportsUnschedulablePodScheduledCondition() {
+        var pod = new PodBuilder()
+                .withStatus(new PodStatusBuilder()
+                        .withConditions(new PodConditionBuilder()
+                                .withType("PodScheduled")
+                                .withStatus("False")
+                                .withReason("Unschedulable")
+                                .withMessage("0/3 nodes are available")
+                                .build())
+                        .build())
+                .build();
+
+        assertThat(mapper.map(pod))
+                .singleElement()
+                .satisfies(finding -> {
+                    assertThat(finding.severity()).isEqualTo(Severity.WARNING);
+                    assertThat(finding.message()).contains("PodScheduled");
+                    assertThat(finding.details()).contains("Unschedulable");
+                });
+    }
+
 }
