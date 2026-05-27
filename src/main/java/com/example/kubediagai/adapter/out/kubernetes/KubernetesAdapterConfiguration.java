@@ -27,10 +27,22 @@ public class KubernetesAdapterConfiguration {
     }
 
     @Bean
+    Fabric8PodLogCollector fabric8PodLogCollector(KubernetesClient kubernetesClient) {
+        return new Fabric8PodLogCollector(kubernetesClient);
+    }
+
+    @Bean
+    Fabric8PodEventCollector fabric8PodEventCollector(KubernetesClient kubernetesClient) {
+        return new Fabric8PodEventCollector(kubernetesClient);
+    }
+
+    @Bean
     KubernetesDiagnosticsPort kubernetesDiagnosticsPort(
             KubernetesClient kubernetesClient,
-            Fabric8PodToClusterFindingMapper mapper
+            Fabric8PodToClusterFindingMapper mapper,
+            Fabric8PodLogCollector logCollector,
+            Fabric8PodEventCollector eventCollector
     ) {
-        return new Fabric8KubernetesDiagnosticsAdapter(kubernetesClient, mapper);
+        return new Fabric8KubernetesDiagnosticsAdapter(kubernetesClient, mapper, logCollector, eventCollector);
     }
 }

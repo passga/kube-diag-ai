@@ -7,6 +7,7 @@ import com.example.kubediagai.domain.Severity;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -14,13 +15,19 @@ public class Fabric8KubernetesDiagnosticsAdapter implements KubernetesDiagnostic
 
     private final KubernetesClient client;
     private final Fabric8PodToClusterFindingMapper mapper;
+    private final Fabric8PodLogCollector logCollector;
+    private final Fabric8PodEventCollector eventCollector;
 
     public Fabric8KubernetesDiagnosticsAdapter(
             KubernetesClient client,
-            Fabric8PodToClusterFindingMapper mapper
+            Fabric8PodToClusterFindingMapper mapper,
+            Fabric8PodLogCollector logCollector,
+            Fabric8PodEventCollector eventCollector
     ) {
         this.client = client;
         this.mapper = mapper;
+        this.logCollector = logCollector;
+        this.eventCollector = eventCollector;
     }
 
     @Override
@@ -39,7 +46,11 @@ public class Fabric8KubernetesDiagnosticsAdapter implements KubernetesDiagnostic
                 ));
             }
 
-            return mapper.map(pod);
+            List<ClusterFinding> findings = new ArrayList<>(mapper.map(pod));
+            findings.addAll(logCollector.collect(command));
+            findings.addAll(eventCollector.collect(command, pod));
+
+            return List.copyOf(findings);
         } catch (KubernetesClientException exception) {
             return List.of(new ClusterFinding(
                     Severity.CRITICAL,
