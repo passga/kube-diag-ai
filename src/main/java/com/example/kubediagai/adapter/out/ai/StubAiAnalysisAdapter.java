@@ -5,9 +5,7 @@ import com.example.kubediagai.domain.AiAnalysis;
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.PodDiagnosticCommand;
 import java.util.List;
-import org.springframework.stereotype.Component;
 
-@Component
 public class StubAiAnalysisAdapter implements AiAnalysisPort {
 
     @Override

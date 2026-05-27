@@ -5,9 +5,7 @@ import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.PodDiagnosticCommand;
 import com.example.kubediagai.domain.Severity;
 import java.util.List;
-import org.springframework.stereotype.Component;
 
-@Component
 public class StubKubernetesDiagnosticsAdapter implements KubernetesDiagnosticsPort {
 
     @Override
