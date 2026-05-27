@@ -126,7 +126,7 @@ The local development workflow runs the Spring Boot application on your machine 
 make dev-up
 ```
 
-This creates or reuses a k3d cluster named `kube-diag-dev`, switches kubectl to `k3d-kube-diag-dev`, creates the `demo` namespace, and applies the demo Pod fixtures.
+This creates or reuses a k3d cluster named `kube-diag-dev`, switches kubectl to `k3d-kube-diag-dev`, creates the `demo` namespace, applies the demo Pod fixtures, and waits for them to reach meaningful diagnostic states.
 
 Expected demo workloads:
 
@@ -139,6 +139,14 @@ You can inspect them with:
 ```bash
 make kube-status
 ```
+
+You can also run the wait step directly:
+
+```bash
+make wait-fixtures
+```
+
+This waits for `pod-ok` to become Running or Ready, `pod-crashloop` to expose `CrashLoopBackOff` or a restart count, and `pod-imagepullbackoff` to expose `ImagePullBackOff` or `ErrImagePull`.
 
 ### Run the application locally
 
@@ -156,7 +164,7 @@ In another terminal:
 make smoke-test
 ```
 
-The smoke test calls `POST /api/pods/diagnose` for the three demo Pods and should return findings that include pod status, logs, and events when available.
+The smoke test first runs `make wait-fixtures`, then calls `POST /api/pods/diagnose` for the three demo Pods. It should return findings that include pod status, logs, and events when available.
 
 ### Clean up
 
