@@ -10,27 +10,35 @@ public class PodLogFindingMapper {
 
     private static final int MAX_DETAILS_LENGTH = 4_000;
 
-    public List<ClusterFinding> map(String logs) {
+    public List<ClusterFinding> map(String containerName, String logs) {
         if (logs == null || logs.isBlank()) {
             return List.of(new ClusterFinding(
                     Severity.INFO,
-                    "Recent pod logs are empty",
-                    "Kubernetes returned no recent log lines for this pod"
+                    "Recent logs are empty for container " + containerName,
+                    "Kubernetes returned no recent log lines for container " + containerName
             ));
         }
 
         return List.of(new ClusterFinding(
                 Severity.INFO,
-                "Recent pod logs",
+                "Recent logs for container " + containerName,
                 truncate(logs.strip())
         ));
     }
 
-    public ClusterFinding mapUnavailable(KubernetesClientException exception) {
+    public ClusterFinding mapUnavailable(String containerName, KubernetesClientException exception) {
         return new ClusterFinding(
                 Severity.WARNING,
-                "Recent pod logs unavailable",
+                "Recent logs unavailable for container " + containerName,
                 Objects.requireNonNullElse(exception.getMessage(), "No error details available")
+        );
+    }
+
+    public ClusterFinding mapNoContainers() {
+        return new ClusterFinding(
+                Severity.WARNING,
+                "Pod has no containers",
+                "No regular or init containers were found in the pod spec"
         );
     }
 

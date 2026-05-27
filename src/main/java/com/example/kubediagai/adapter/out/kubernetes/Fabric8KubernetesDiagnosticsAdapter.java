@@ -50,7 +50,7 @@ public class Fabric8KubernetesDiagnosticsAdapter implements KubernetesDiagnostic
             }
 
             List<ClusterFinding> findings = new ArrayList<>(mapper.map(pod));
-            findings.addAll(logCollector.collect(command));
+            findings.addAll(logCollector.collect(command, pod));
             findings.addAll(eventCollector.collect(command, pod));
 
             return List.copyOf(findings);
