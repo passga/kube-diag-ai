@@ -101,6 +101,7 @@ The current implementation provides a first technical foundation:
   - `pod-ok`
   - `pod-crashloop`
   - `pod-imagepullbackoff`
+- OpenAPI / Swagger UI documentation
 - Makefile workflow:
   - `dev-up`
   - `run`
@@ -117,7 +118,6 @@ The following parts are intentionally not implemented yet:
 
 - AI / LLM analysis
 - LangChain4j integration
-- OpenAPI / Swagger UI
 - Docker image packaging
 - GHCR publishing
 - in-cluster deployment
@@ -554,6 +554,26 @@ curl -X POST http://localhost:8080/api/pods/diagnose \
   }'
 ```
 
+## API Documentation
+
+Start the application locally:
+
+```bash
+make run
+```
+
+Then open Swagger UI in a browser:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+The OpenAPI JSON document is available at:
+
+```text
+http://localhost:8080/v3/api-docs
+```
+
 ---
 
 ## Example Response Shape
@@ -600,33 +620,6 @@ Reset the local environment:
 
 ```bash
 make dev-reset
-```
-
----
-
-## OpenAPI / Swagger
-
-OpenAPI and Swagger UI are planned as a separate documentation improvement.
-
-They are not part of the current implemented baseline yet.
-
-Expected future endpoints:
-
-```text
-/v3/api-docs
-/swagger-ui/index.html
-```
-
-The goal will be to document:
-
-```http
-POST /api/pods/diagnose
-```
-
-and future endpoints such as:
-
-```http
-GET /api/namespaces/{namespace}/pods
 ```
 
 ---
@@ -678,7 +671,6 @@ The domain and application layers should not depend directly on the AI framework
 
 - Add namespace Pod summary endpoint:
   - `GET /api/namespaces/{namespace}/pods`
-- Add OpenAPI / Swagger UI
 - Improve README and API documentation
 - Improve structured diagnostic findings
 - Add more tests around Kubernetes mapping rules
