@@ -191,7 +191,7 @@ This deployment path is not implemented yet. The application currently runs loca
 
 ## Roadmap
 
-- Complete Fabric8 Pod diagnostics
+- Improve and harden Fabric8 Pod diagnostics
 - Add Docker packaging
 - Add in-cluster deployment with `ServiceAccount` and read-only RBAC
 - Add LangChain4j AI analysis
