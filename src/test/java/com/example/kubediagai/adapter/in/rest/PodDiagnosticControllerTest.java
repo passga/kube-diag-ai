@@ -47,8 +47,8 @@ class PodDiagnosticControllerTest {
                                   "namespace": "argocd",
                                   "podName": "argocd-server-abc123"
                                 }
-                                """))
-                .andExpect(status().isAccepted())
+                """))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.request.namespace").value("argocd"))
                 .andExpect(jsonPath("$.request.podName").value("argocd-server-abc123"))
                 .andExpect(jsonPath("$.findings", hasSize(1)))
