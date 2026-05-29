@@ -5,6 +5,7 @@ import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeveri
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodEventCollector;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodLogCollector;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.ContainerStatusFindingMapper;
+import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8PodSummaryMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8PodToClusterFindingMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodConditionFindingMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodEventFindingMapper;
@@ -86,5 +87,18 @@ public class KubernetesAdapterConfiguration {
             Fabric8PodEventCollector eventCollector
     ) {
         return new Fabric8KubernetesDiagnosticsAdapter(kubernetesClient, mapper, logCollector, eventCollector);
+    }
+
+    @Bean
+    Fabric8PodSummaryMapper fabric8PodSummaryMapper() {
+        return new Fabric8PodSummaryMapper();
+    }
+
+    @Bean
+    Fabric8KubernetesPodSummaryAdapter kubernetesPodSummaryPort(
+            KubernetesClient kubernetesClient,
+            Fabric8PodSummaryMapper mapper
+    ) {
+        return new Fabric8KubernetesPodSummaryAdapter(kubernetesClient, mapper);
     }
 }
