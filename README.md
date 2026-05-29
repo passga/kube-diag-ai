@@ -84,8 +84,10 @@ The current implementation provides a first technical foundation:
 - Maven wrapper
 - lightweight hexagonal architecture
 - REST endpoint: `POST /api/pods/diagnose`
+- REST endpoint: `GET /api/namespaces/{namespace}/pods`
 - Fabric8 Kubernetes client integration
 - read-only Kubernetes diagnostics through a Kubernetes outbound port
+- namespace Pod summaries with diagnostic health status
 - Pod diagnostics using:
   - Pod phase
   - Pod conditions
@@ -143,6 +145,28 @@ Current endpoint:
 POST /api/pods/diagnose
 ```
 
+Namespace Pod summary endpoint:
+
+```http
+GET /api/namespaces/{namespace}/pods
+```
+
+Example response:
+
+```json
+[
+  {
+    "namespace": "demo",
+    "name": "pod-crashloop",
+    "phase": "Running",
+    "ready": false,
+    "restartCount": 5,
+    "waitingReason": "CrashLoopBackOff",
+    "healthStatus": "UNHEALTHY"
+  }
+]
+```
+
 Example request:
 
 ```json
@@ -163,20 +187,20 @@ argocd-server-5f7c9d8f9b-xk2pz
 my-app-78d9cbb6c9-vr42m
 ```
 
-A more useful product workflow will be added later:
+Supported workflow:
 
 1. List Pods in a namespace with their health status.
 2. Select a problematic Pod.
 3. Run a detailed diagnostic on that Pod.
 4. Later, diagnose a workload directly by Deployment, StatefulSet, or DaemonSet name.
 
-Example future endpoint:
+Pod summary endpoint:
 
 ```http
 GET /api/namespaces/{namespace}/pods
 ```
 
-Example future workflow:
+Example workflow:
 
 ```text
 GET /api/namespaces/demo/pods
@@ -535,10 +559,19 @@ pod-imagepullbackoff
 
 It should return findings including Pod status, logs, and events when available.
 
+To validate the namespace Pod summary endpoint:
+
+```bash
+make smoke-test-pod-summary
+```
+
+This checks that the demo Pods are present and that diagnostic health fields are populated.
+
 If your application runs on another port:
 
 ```bash
 APP_URL=http://localhost:18080 make smoke-test
+APP_URL=http://localhost:18080 make smoke-test-pod-summary
 ```
 
 ---

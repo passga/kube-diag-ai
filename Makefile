@@ -4,7 +4,7 @@ DEMO_NAMESPACE ?= demo
 APP_URL ?= http://localhost:8080
 FIXTURE_TIMEOUT_SECONDS ?= 120
 
-.PHONY: dev-up run smoke-test dev-down kube-status dev-reset wait-fixtures
+.PHONY: dev-up run smoke-test smoke-test-pod-summary dev-down kube-status dev-reset wait-fixtures
 
 dev-up:
 	k3d cluster list $(K3D_CLUSTER) >/dev/null 2>&1 || k3d cluster create --config local/k3d/cluster.yaml --wait
@@ -23,6 +23,19 @@ smoke-test: wait-fixtures
 	curl -fsS -X POST $(APP_URL)/api/pods/diagnose -H 'Content-Type: application/json' -d '{"namespace":"$(DEMO_NAMESPACE)","podName":"pod-ok"}'
 	curl -fsS -X POST $(APP_URL)/api/pods/diagnose -H 'Content-Type: application/json' -d '{"namespace":"$(DEMO_NAMESPACE)","podName":"pod-crashloop"}'
 	curl -fsS -X POST $(APP_URL)/api/pods/diagnose -H 'Content-Type: application/json' -d '{"namespace":"$(DEMO_NAMESPACE)","podName":"pod-imagepullbackoff"}'
+
+smoke-test-pod-summary: wait-fixtures
+	@response_file=$$(mktemp); \
+	trap 'rm -f "$$response_file"' EXIT; \
+	curl -fsS -X GET $(APP_URL)/api/namespaces/$(DEMO_NAMESPACE)/pods > "$$response_file"; \
+	grep -q '"name":"pod-ok"' "$$response_file"; \
+	grep -q '"name":"pod-crashloop"' "$$response_file"; \
+	grep -q '"name":"pod-imagepullbackoff"' "$$response_file"; \
+	grep -q '"healthStatus":"' "$$response_file"; \
+	grep -q '"healthStatus":"UNHEALTHY"' "$$response_file"; \
+	grep -Eq '"name":"pod-crashloop".*"waitingReason":("CrashLoopBackOff"|null)' "$$response_file"; \
+	grep -Eq '"name":"pod-imagepullbackoff".*"waitingReason":"(ImagePullBackOff|ErrImagePull)"' "$$response_file"; \
+	cat "$$response_file"
 
 wait-fixtures:
 	@echo "Waiting for demo pod fixtures in namespace $(DEMO_NAMESPACE) (timeout: $(FIXTURE_TIMEOUT_SECONDS)s)"
