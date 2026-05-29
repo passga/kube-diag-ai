@@ -104,6 +104,21 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
+    void mapsTerminatingRunningReadyPodAsWarning() {
+        PodSummary summary = mapper.map(pod(
+                "demo",
+                "pod-terminating",
+                "Running",
+                true,
+                "2026-05-29T15:22:36Z",
+                container("app", true, 0, null)
+        ));
+
+        assertThat(summary.ready()).isTrue();
+        assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.WARNING);
+    }
+
+    @Test
     void mapsInitContainerImagePullBackOffPodAsUnhealthy() {
         PodSummary summary = mapper.map(podWithInitContainers(
                 "demo",
@@ -153,7 +168,26 @@ class Fabric8PodSummaryMapperTest {
             boolean ready,
             ContainerStatus... containerStatuses
     ) {
-        return podWithInitContainers(namespace, name, phase, ready, containerStatuses, new ContainerStatus[]{});
+        return pod(namespace, name, phase, ready, null, containerStatuses);
+    }
+
+    private static Pod pod(
+            String namespace,
+            String name,
+            String phase,
+            boolean ready,
+            String deletionTimestamp,
+            ContainerStatus... containerStatuses
+    ) {
+        return podWithInitContainers(
+                namespace,
+                name,
+                phase,
+                ready,
+                deletionTimestamp,
+                containerStatuses,
+                new ContainerStatus[]{}
+        );
     }
 
     private static Pod podWithInitContainers(
@@ -164,10 +198,31 @@ class Fabric8PodSummaryMapperTest {
             ContainerStatus[] containerStatuses,
             ContainerStatus[] initContainerStatuses
     ) {
+        return podWithInitContainers(
+                namespace,
+                name,
+                phase,
+                ready,
+                null,
+                containerStatuses,
+                initContainerStatuses
+        );
+    }
+
+    private static Pod podWithInitContainers(
+            String namespace,
+            String name,
+            String phase,
+            boolean ready,
+            String deletionTimestamp,
+            ContainerStatus[] containerStatuses,
+            ContainerStatus[] initContainerStatuses
+    ) {
         return new PodBuilder()
                 .withNewMetadata()
                 .withNamespace(namespace)
                 .withName(name)
+                .withDeletionTimestamp(deletionTimestamp)
                 .endMetadata()
                 .withStatus(new PodStatusBuilder()
                         .withPhase(phase)

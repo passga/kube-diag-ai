@@ -14,6 +14,7 @@ public class Fabric8PodSummaryMapper {
     public PodSummary map(Pod pod) {
         String namespace = pod.getMetadata() == null ? null : pod.getMetadata().getNamespace();
         String name = pod.getMetadata() == null ? null : pod.getMetadata().getName();
+        boolean terminating = pod.getMetadata() != null && pod.getMetadata().getDeletionTimestamp() != null;
         String phase = pod.getStatus() == null ? null : pod.getStatus().getPhase();
         boolean ready = isReady(pod);
         int restartCount = containerStatuses(pod)
@@ -38,7 +39,7 @@ public class Fabric8PodSummaryMapper {
                 ready,
                 restartCount,
                 waitingReason,
-                healthStatus(phase, ready, restartCount, waitingReasons)
+                healthStatus(phase, ready, restartCount, waitingReasons, terminating)
         );
     }
 
@@ -70,11 +71,16 @@ public class Fabric8PodSummaryMapper {
             String phase,
             boolean ready,
             int restartCount,
-            List<String> waitingReasons
+            List<String> waitingReasons,
+            boolean terminating
     ) {
         if ("Failed".equals(phase)
                 || waitingReasons.stream().anyMatch(Fabric8PodSummaryMapper::isUnhealthyWaitingReason)) {
             return PodHealthStatus.UNHEALTHY;
+        }
+
+        if (terminating) {
+            return PodHealthStatus.WARNING;
         }
 
         if ("Succeeded".equals(phase)) {
