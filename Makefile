@@ -33,7 +33,7 @@ smoke-test-pod-summary: wait-fixtures
 	grep -q '"name":"pod-imagepullbackoff"' "$$response_file"; \
 	grep -q '"healthStatus":"' "$$response_file"; \
 	grep -q '"healthStatus":"UNHEALTHY"' "$$response_file"; \
-	grep -Eq '"name":"pod-crashloop".*"waitingReason":("CrashLoopBackOff"|null)' "$$response_file"; \
+	grep -Eq '"name":"pod-crashloop".*"waitingReason":"CrashLoopBackOff"' "$$response_file"; \
 	grep -Eq '"name":"pod-imagepullbackoff".*"waitingReason":"(ImagePullBackOff|ErrImagePull)"' "$$response_file"; \
 	cat "$$response_file"
 
