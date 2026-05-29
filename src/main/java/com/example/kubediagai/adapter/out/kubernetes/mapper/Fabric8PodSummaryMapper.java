@@ -5,6 +5,7 @@ import com.example.kubediagai.domain.PodSummary;
 import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -20,15 +21,15 @@ public class Fabric8PodSummaryMapper {
                 .filter(Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
-        String waitingReason = containerStatuses(pod)
+        List<String> waitingReasons = containerStatuses(pod)
                 .map(ContainerStatus::getState)
                 .filter(Objects::nonNull)
                 .map(state -> state.getWaiting())
                 .filter(Objects::nonNull)
                 .map(ContainerStateWaiting::getReason)
                 .filter(reason -> reason != null && !reason.isBlank())
-                .findFirst()
-                .orElse(null);
+                .toList();
+        String waitingReason = selectWaitingReason(waitingReasons);
 
         return new PodSummary(
                 namespace,
@@ -37,7 +38,7 @@ public class Fabric8PodSummaryMapper {
                 ready,
                 restartCount,
                 waitingReason,
-                healthStatus(phase, ready, restartCount, waitingReason)
+                healthStatus(phase, ready, restartCount, waitingReasons)
         );
     }
 
@@ -69,25 +70,38 @@ public class Fabric8PodSummaryMapper {
             String phase,
             boolean ready,
             int restartCount,
-            String waitingReason
+            List<String> waitingReasons
     ) {
-        if ("Failed".equals(phase) || isUnhealthyWaitingReason(waitingReason)) {
+        if ("Failed".equals(phase)
+                || waitingReasons.stream().anyMatch(Fabric8PodSummaryMapper::isUnhealthyWaitingReason)) {
             return PodHealthStatus.UNHEALTHY;
+        }
+
+        if ("Succeeded".equals(phase)) {
+            return PodHealthStatus.HEALTHY;
         }
 
         if ("Pending".equals(phase)
                 || "Unknown".equals(phase)
                 || !ready
                 || restartCount > 0
-                || waitingReason != null) {
+                || !waitingReasons.isEmpty()) {
             return PodHealthStatus.WARNING;
         }
 
-        if ("Running".equals(phase) || "Succeeded".equals(phase)) {
+        if ("Running".equals(phase)) {
             return PodHealthStatus.HEALTHY;
         }
 
         return PodHealthStatus.WARNING;
+    }
+
+    private static String selectWaitingReason(List<String> waitingReasons) {
+        return waitingReasons.stream()
+                .filter(Fabric8PodSummaryMapper::isUnhealthyWaitingReason)
+                .findFirst()
+                .or(() -> waitingReasons.stream().findFirst())
+                .orElse(null);
     }
 
     private static boolean isUnhealthyWaitingReason(String waitingReason) {

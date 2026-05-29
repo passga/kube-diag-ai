@@ -33,6 +33,19 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
+    void mapsRunningReadyPodWithoutRestartsOrWaitingReasonAsHealthy() {
+        PodSummary summary = mapper.map(pod(
+                "demo",
+                "pod-healthy",
+                "Running",
+                true,
+                container("app", true, 0, null)
+        ));
+
+        assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.HEALTHY);
+    }
+
+    @Test
     void mapsCrashLoopBackOffPodAsUnhealthy() {
         PodSummary summary = mapper.map(pod(
                 "demo",
@@ -55,6 +68,50 @@ class Fabric8PodSummaryMapperTest {
                 "Pending",
                 false,
                 container("app", false, 0, "ImagePullBackOff")
+        ));
+
+        assertThat(summary.waitingReason()).isEqualTo("ImagePullBackOff");
+        assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.UNHEALTHY);
+    }
+
+    @Test
+    void mapsPodAsUnhealthyWhenLaterContainerHasCrashLoopBackOff() {
+        PodSummary summary = mapper.map(pod(
+                "demo",
+                "pod-multi-container",
+                "Pending",
+                false,
+                container("sidecar", false, 0, "ContainerCreating"),
+                container("app", false, 2, "CrashLoopBackOff")
+        ));
+
+        assertThat(summary.waitingReason()).isEqualTo("CrashLoopBackOff");
+        assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.UNHEALTHY);
+    }
+
+    @Test
+    void mapsSucceededNotReadyPodAsHealthy() {
+        PodSummary summary = mapper.map(pod(
+                "demo",
+                "pod-completed",
+                "Succeeded",
+                false,
+                container("job", false, 0, null)
+        ));
+
+        assertThat(summary.ready()).isFalse();
+        assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.HEALTHY);
+    }
+
+    @Test
+    void mapsInitContainerImagePullBackOffPodAsUnhealthy() {
+        PodSummary summary = mapper.map(podWithInitContainers(
+                "demo",
+                "pod-init-imagepullbackoff",
+                "Pending",
+                false,
+                new ContainerStatus[]{container("app", false, 0, null)},
+                new ContainerStatus[]{container("init-db", false, 0, "ImagePullBackOff")}
         ));
 
         assertThat(summary.waitingReason()).isEqualTo("ImagePullBackOff");
@@ -96,6 +153,17 @@ class Fabric8PodSummaryMapperTest {
             boolean ready,
             ContainerStatus... containerStatuses
     ) {
+        return podWithInitContainers(namespace, name, phase, ready, containerStatuses, new ContainerStatus[]{});
+    }
+
+    private static Pod podWithInitContainers(
+            String namespace,
+            String name,
+            String phase,
+            boolean ready,
+            ContainerStatus[] containerStatuses,
+            ContainerStatus[] initContainerStatuses
+    ) {
         return new PodBuilder()
                 .withNewMetadata()
                 .withNamespace(namespace)
@@ -108,6 +176,7 @@ class Fabric8PodSummaryMapperTest {
                                 .withStatus(ready ? "True" : "False")
                                 .build())
                         .withContainerStatuses(containerStatuses)
+                        .withInitContainerStatuses(initContainerStatuses)
                         .build())
                 .build();
     }
