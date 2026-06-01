@@ -1,62 +1,34 @@
 package com.example.kubediagai.domain.diagnostic;
 
 import com.example.kubediagai.domain.PodHealthStatus;
-import java.util.List;
-import java.util.Objects;
 
 public class PodHealthEvaluator {
 
-    public PodHealthStatus evaluate(
-            String phase,
-            boolean ready,
-            int restartCount,
-            List<String> waitingReasons,
-            boolean terminating
-    ) {
-        List<String> reasons = Objects.requireNonNullElse(waitingReasons, List.of());
-
-        if ("Failed".equals(phase)
-                || reasons.stream().anyMatch(this::isUnhealthyWaitingReason)) {
+    public PodHealthStatus evaluate(PodRuntimeState state) {
+        if ("Failed".equals(state.phase()) || state.hasUnhealthyWaitingReason()) {
             return PodHealthStatus.UNHEALTHY;
         }
 
-        if (terminating) {
+        if (state.terminating()) {
             return PodHealthStatus.WARNING;
         }
 
-        if ("Succeeded".equals(phase)) {
+        if ("Succeeded".equals(state.phase())) {
             return PodHealthStatus.HEALTHY;
         }
 
-        if ("Pending".equals(phase)
-                || "Unknown".equals(phase)
-                || !ready
-                || restartCount > 0
-                || !reasons.isEmpty()) {
+        if ("Pending".equals(state.phase())
+                || "Unknown".equals(state.phase())
+                || !state.ready()
+                || state.restartCount() > 0
+                || !state.waitingReasons().isEmpty()) {
             return PodHealthStatus.WARNING;
         }
 
-        if ("Running".equals(phase)) {
+        if ("Running".equals(state.phase())) {
             return PodHealthStatus.HEALTHY;
         }
 
         return PodHealthStatus.WARNING;
-    }
-
-    public String selectWaitingReason(List<String> waitingReasons) {
-        List<String> reasons = Objects.requireNonNullElse(waitingReasons, List.of());
-
-        return reasons.stream()
-                .filter(this::isUnhealthyWaitingReason)
-                .findFirst()
-                .or(() -> reasons.stream().findFirst())
-                .orElse(null);
-    }
-
-    private boolean isUnhealthyWaitingReason(String waitingReason) {
-        return switch (Objects.requireNonNullElse(waitingReason, "")) {
-            case "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull" -> true;
-            default -> false;
-        };
     }
 }

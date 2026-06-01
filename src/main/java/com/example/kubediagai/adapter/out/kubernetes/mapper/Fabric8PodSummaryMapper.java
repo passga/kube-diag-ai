@@ -1,12 +1,12 @@
 package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import com.example.kubediagai.domain.PodSummary;
+import com.example.kubediagai.domain.diagnostic.PodContainerRuntimeState;
 import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodRuntimeState;
 import io.fabric8.kubernetes.api.model.ContainerState;
-import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
-import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -24,30 +24,40 @@ public class Fabric8PodSummaryMapper {
         boolean terminating = pod.getMetadata() != null && pod.getMetadata().getDeletionTimestamp() != null;
         String phase = pod.getStatus() == null ? null : pod.getStatus().getPhase();
         boolean ready = isReady(pod);
-        int restartCount = containerStatuses(pod)
-                .map(ContainerStatus::getRestartCount)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
-        List<String> waitingReasons = containerStatuses(pod)
-                .map(ContainerStatus::getState)
-                .filter(Objects::nonNull)
-                .map(ContainerState::getWaiting)
-                .filter(Objects::nonNull)
-                .map(ContainerStateWaiting::getReason)
-                .filter(reason -> reason != null && !reason.isBlank())
-                .toList();
-        String waitingReason = podHealthEvaluator.selectWaitingReason(waitingReasons);
+        PodRuntimeState runtimeState = new PodRuntimeState(
+                phase,
+                ready,
+                containerStatuses(pod)
+                        .map(Fabric8PodSummaryMapper::containerRuntimeState)
+                        .toList(),
+                terminating
+        );
 
         return new PodSummary(
                 namespace,
                 name,
-                phase,
-                ready,
-                restartCount,
-                waitingReason,
-                podHealthEvaluator.evaluate(phase, ready, restartCount, waitingReasons, terminating)
+                runtimeState.phase(),
+                runtimeState.ready(),
+                runtimeState.restartCount(),
+                runtimeState.selectedWaitingReason(),
+                podHealthEvaluator.evaluate(runtimeState)
         );
+    }
+
+    private static PodContainerRuntimeState containerRuntimeState(ContainerStatus containerStatus) {
+        return new PodContainerRuntimeState(
+                Objects.requireNonNullElse(containerStatus.getRestartCount(), 0),
+                waitingReason(containerStatus)
+        );
+    }
+
+    private static String waitingReason(ContainerStatus containerStatus) {
+        return Stream.ofNullable(containerStatus.getState())
+                .map(ContainerState::getWaiting)
+                .filter(Objects::nonNull)
+                .map(waiting -> waiting.getReason())
+                .findFirst()
+                .orElse(null);
     }
 
     private static boolean isReady(Pod pod) {
