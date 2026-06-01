@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeverityClassifier;
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.ContainerStatusFindingEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodConditionBuilder;
@@ -16,7 +17,7 @@ class Fabric8PodToClusterFindingMapperTest {
 
     private final Fabric8PodToClusterFindingMapper mapper = new Fabric8PodToClusterFindingMapper(
             new KubernetesSeverityClassifier(),
-            new ContainerStatusFindingMapper(new KubernetesSeverityClassifier()),
+            new ContainerStatusFindingMapper(new ContainerStatusFindingEvaluator()),
             new PodConditionFindingMapper()
     );
 

@@ -1,8 +1,8 @@
 package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
-import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeverityClassifier;
 import com.example.kubediagai.domain.ClusterFinding;
-import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.ContainerDiagnosticState;
+import com.example.kubediagai.domain.diagnostic.ContainerStatusFindingEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -12,10 +12,10 @@ import java.util.Objects;
 
 public class ContainerStatusFindingMapper {
 
-    private final KubernetesSeverityClassifier severityClassifier;
+    private final ContainerStatusFindingEvaluator evaluator;
 
-    public ContainerStatusFindingMapper(KubernetesSeverityClassifier severityClassifier) {
-        this.severityClassifier = severityClassifier;
+    public ContainerStatusFindingMapper(ContainerStatusFindingEvaluator evaluator) {
+        this.evaluator = evaluator;
     }
 
     public List<ClusterFinding> map(Pod pod) {
@@ -32,28 +32,14 @@ public class ContainerStatusFindingMapper {
     }
 
     List<ClusterFinding> map(ContainerStatus status) {
-        List<ClusterFinding> findings = new ArrayList<>();
+        ContainerStateWaiting waiting = status.getState() == null ? null : status.getState().getWaiting();
+        ContainerDiagnosticState state = new ContainerDiagnosticState(
+                status.getName(),
+                Objects.requireNonNullElse(status.getRestartCount(), 0),
+                waiting == null ? null : Objects.requireNonNullElse(waiting.getReason(), "Waiting"),
+                waiting == null ? null : waiting.getMessage()
+        );
 
-        if (status.getRestartCount() != null && status.getRestartCount() > 0) {
-            findings.add(new ClusterFinding(
-                    Severity.WARNING,
-                    "Container has restarted",
-                    status.getName() + " restartCount=" + status.getRestartCount()
-            ));
-        }
-
-        if (status.getState() == null || status.getState().getWaiting() == null) {
-            return findings;
-        }
-
-        ContainerStateWaiting waiting = status.getState().getWaiting();
-        String reason = Objects.requireNonNullElse(waiting.getReason(), "Waiting");
-        findings.add(new ClusterFinding(
-                severityClassifier.classifyWaitingReason(reason),
-                "Container is waiting: " + reason,
-                status.getName() + ": " + Objects.requireNonNullElse(waiting.getMessage(), "No message")
-        ));
-
-        return List.copyOf(findings);
+        return evaluator.evaluate(state);
     }
 }

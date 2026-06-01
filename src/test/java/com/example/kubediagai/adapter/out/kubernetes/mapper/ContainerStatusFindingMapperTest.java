@@ -2,9 +2,9 @@ package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeverityClassifier;
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.ContainerStatusFindingEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
@@ -15,11 +15,11 @@ import org.junit.jupiter.api.Test;
 class ContainerStatusFindingMapperTest {
 
     private final ContainerStatusFindingMapper mapper = new ContainerStatusFindingMapper(
-            new KubernetesSeverityClassifier()
+            new ContainerStatusFindingEvaluator()
     );
 
     @Test
-    void reportsCrashLoopBackOffAsCritical() {
+    void should_translate_fabric8_container_status_to_findings_when_container_has_status_signals() {
         var pod = new PodBuilder()
                 .withStatus(new PodStatusBuilder()
                         .withContainerStatuses(new ContainerStatusBuilder()
@@ -40,37 +40,24 @@ class ContainerStatusFindingMapperTest {
         assertThat(findings)
                 .anySatisfy(finding -> {
                     assertThat(finding.severity()).isEqualTo(Severity.CRITICAL);
-                    assertThat(finding.message()).contains("CrashLoopBackOff");
+                    assertThat(finding.message()).isEqualTo("Container is waiting: CrashLoopBackOff");
+                    assertThat(finding.details()).isEqualTo("crash: back-off restarting failed container");
                 })
                 .anySatisfy(finding -> {
                     assertThat(finding.severity()).isEqualTo(Severity.WARNING);
-                    assertThat(finding.details()).contains("restartCount=4");
+                    assertThat(finding.message()).isEqualTo("Container has restarted");
+                    assertThat(finding.details()).isEqualTo("crash restartCount=4");
                 });
     }
 
     @Test
-    void reportsImagePullBackOffAsCritical() {
+    void should_return_empty_findings_when_pod_has_no_container_statuses() {
         var pod = new PodBuilder()
-                .withStatus(new PodStatusBuilder()
-                        .withContainerStatuses(new ContainerStatusBuilder()
-                                .withName("bad-image")
-                                .withRestartCount(0)
-                                .withState(new ContainerStateBuilder()
-                                        .withNewWaiting()
-                                        .withReason("ImagePullBackOff")
-                                        .withMessage("Back-off pulling image")
-                                        .endWaiting()
-                                        .build())
-                                .build())
-                        .build())
+                .withStatus(new PodStatusBuilder().build())
                 .build();
 
         List<ClusterFinding> findings = mapper.map(pod);
 
-        assertThat(findings)
-                .anySatisfy(finding -> {
-                    assertThat(finding.severity()).isEqualTo(Severity.CRITICAL);
-                    assertThat(finding.message()).contains("ImagePullBackOff");
-                });
+        assertThat(findings).isEmpty();
     }
 }

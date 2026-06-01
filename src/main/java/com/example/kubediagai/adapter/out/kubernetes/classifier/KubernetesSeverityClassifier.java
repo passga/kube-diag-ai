@@ -11,12 +11,4 @@ public class KubernetesSeverityClassifier {
             default -> Severity.INFO;
         };
     }
-
-    public Severity classifyWaitingReason(String reason) {
-        return switch (reason) {
-            case "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull" -> Severity.CRITICAL;
-            case "ContainerCreating", "PodInitializing" -> Severity.INFO;
-            default -> Severity.WARNING;
-        };
-    }
 }
