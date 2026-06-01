@@ -1,7 +1,8 @@
-package com.example.kubediagai.domain;
+package com.example.kubediagai.domain.diagnostic;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.kubediagai.domain.PodHealthStatus;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

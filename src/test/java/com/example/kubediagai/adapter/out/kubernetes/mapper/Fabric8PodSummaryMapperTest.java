@@ -2,9 +2,9 @@ package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.kubediagai.domain.PodHealthEvaluator;
 import com.example.kubediagai.domain.PodHealthStatus;
 import com.example.kubediagai.domain.PodSummary;
+import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;

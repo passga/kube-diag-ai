@@ -1,7 +1,8 @@
 package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
-import com.example.kubediagai.domain.PodHealthEvaluator;
 import com.example.kubediagai.domain.PodSummary;
+import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
+import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -31,7 +32,7 @@ public class Fabric8PodSummaryMapper {
         List<String> waitingReasons = containerStatuses(pod)
                 .map(ContainerStatus::getState)
                 .filter(Objects::nonNull)
-                .map(state -> state.getWaiting())
+                .map(ContainerState::getWaiting)
                 .filter(Objects::nonNull)
                 .map(ContainerStateWaiting::getReason)
                 .filter(reason -> reason != null && !reason.isBlank())

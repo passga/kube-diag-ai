@@ -10,7 +10,7 @@ import com.example.kubediagai.adapter.out.kubernetes.mapper.PodConditionFindingM
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodEventFindingMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodLogFindingMapper;
 import com.example.kubediagai.application.port.out.KubernetesDiagnosticsPort;
-import com.example.kubediagai.domain.PodHealthEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.springframework.context.annotation.Bean;

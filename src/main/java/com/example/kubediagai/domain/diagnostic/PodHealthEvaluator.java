@@ -1,5 +1,6 @@
-package com.example.kubediagai.domain;
+package com.example.kubediagai.domain.diagnostic;
 
+import com.example.kubediagai.domain.PodHealthStatus;
 import java.util.List;
 import java.util.Objects;
 
