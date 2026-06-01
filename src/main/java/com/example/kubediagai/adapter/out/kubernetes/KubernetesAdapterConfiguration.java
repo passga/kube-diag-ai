@@ -1,6 +1,5 @@
 package com.example.kubediagai.adapter.out.kubernetes;
 
-import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeverityClassifier;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodEventCollector;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodLogCollector;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.ContainerStatusFindingMapper;
@@ -15,6 +14,7 @@ import com.example.kubediagai.domain.diagnostic.PodConditionFindingEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodEventFindingEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodLogFindingEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodStatusFindingEvaluator;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.springframework.context.annotation.Bean;
@@ -26,11 +26,6 @@ public class KubernetesAdapterConfiguration {
     @Bean
     KubernetesClient kubernetesClient() {
         return new KubernetesClientBuilder().build();
-    }
-
-    @Bean
-    KubernetesSeverityClassifier kubernetesSeverityClassifier() {
-        return new KubernetesSeverityClassifier();
     }
 
     @Bean
@@ -55,15 +50,20 @@ public class KubernetesAdapterConfiguration {
 
     @Bean
     Fabric8PodToClusterFindingMapper fabric8PodToClusterFindingMapper(
-            KubernetesSeverityClassifier kubernetesSeverityClassifier,
+            PodStatusFindingEvaluator podStatusFindingEvaluator,
             ContainerStatusFindingMapper containerStatusFindingMapper,
             PodConditionFindingMapper podConditionFindingMapper
     ) {
         return new Fabric8PodToClusterFindingMapper(
-                kubernetesSeverityClassifier,
+                podStatusFindingEvaluator,
                 containerStatusFindingMapper,
                 podConditionFindingMapper
         );
+    }
+
+    @Bean
+    PodStatusFindingEvaluator podStatusFindingEvaluator() {
+        return new PodStatusFindingEvaluator();
     }
 
     @Bean
