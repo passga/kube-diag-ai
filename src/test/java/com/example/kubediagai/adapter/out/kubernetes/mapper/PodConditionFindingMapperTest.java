@@ -3,6 +3,7 @@ package com.example.kubediagai.adapter.out.kubernetes.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.PodConditionFindingEvaluator;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodConditionBuilder;
 import io.fabric8.kubernetes.api.model.PodStatusBuilder;
@@ -10,32 +11,12 @@ import org.junit.jupiter.api.Test;
 
 class PodConditionFindingMapperTest {
 
-    private final PodConditionFindingMapper mapper = new PodConditionFindingMapper();
+    private final PodConditionFindingMapper mapper = new PodConditionFindingMapper(
+            new PodConditionFindingEvaluator()
+    );
 
     @Test
-    void reportsUnhealthyPodConditions() {
-        var pod = new PodBuilder()
-                .withStatus(new PodStatusBuilder()
-                        .withConditions(new PodConditionBuilder()
-                                .withType("Ready")
-                                .withStatus("False")
-                                .withReason("ContainersNotReady")
-                                .withMessage("containers with unready status")
-                                .build())
-                        .build())
-                .build();
-
-        assertThat(mapper.map(pod))
-                .singleElement()
-                .satisfies(finding -> {
-                    assertThat(finding.severity()).isEqualTo(Severity.WARNING);
-                    assertThat(finding.message()).contains("Ready");
-                    assertThat(finding.details()).contains("ContainersNotReady");
-                });
-    }
-
-    @Test
-    void reportsUnschedulablePodScheduledCondition() {
+    void should_translate_fabric8_pod_condition_to_findings_when_condition_has_diagnostic_signal() {
         var pod = new PodBuilder()
                 .withStatus(new PodStatusBuilder()
                         .withConditions(new PodConditionBuilder()
@@ -51,9 +32,18 @@ class PodConditionFindingMapperTest {
                 .singleElement()
                 .satisfies(finding -> {
                     assertThat(finding.severity()).isEqualTo(Severity.WARNING);
-                    assertThat(finding.message()).contains("PodScheduled");
-                    assertThat(finding.details()).contains("Unschedulable");
+                    assertThat(finding.message()).isEqualTo("Pod condition is not healthy: PodScheduled");
+                    assertThat(finding.details())
+                            .isEqualTo("status=False, reason=Unschedulable, message=0/3 nodes are available");
                 });
     }
 
+    @Test
+    void should_return_empty_findings_when_pod_has_no_conditions() {
+        var pod = new PodBuilder()
+                .withStatus(new PodStatusBuilder().build())
+                .build();
+
+        assertThat(mapper.map(pod)).isEmpty();
+    }
 }

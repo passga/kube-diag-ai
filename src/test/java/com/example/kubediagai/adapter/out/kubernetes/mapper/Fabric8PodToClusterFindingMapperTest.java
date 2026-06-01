@@ -6,6 +6,7 @@ import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeveri
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.Severity;
 import com.example.kubediagai.domain.diagnostic.ContainerStatusFindingEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodConditionFindingEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodConditionBuilder;
@@ -18,7 +19,7 @@ class Fabric8PodToClusterFindingMapperTest {
     private final Fabric8PodToClusterFindingMapper mapper = new Fabric8PodToClusterFindingMapper(
             new KubernetesSeverityClassifier(),
             new ContainerStatusFindingMapper(new ContainerStatusFindingEvaluator()),
-            new PodConditionFindingMapper()
+            new PodConditionFindingMapper(new PodConditionFindingEvaluator())
     );
 
     @Test

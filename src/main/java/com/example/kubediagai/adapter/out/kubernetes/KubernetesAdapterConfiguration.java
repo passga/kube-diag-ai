@@ -11,6 +11,7 @@ import com.example.kubediagai.adapter.out.kubernetes.mapper.PodEventFindingMappe
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodLogFindingMapper;
 import com.example.kubediagai.application.port.out.KubernetesDiagnosticsPort;
 import com.example.kubediagai.domain.diagnostic.ContainerStatusFindingEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodConditionFindingEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -41,8 +42,13 @@ public class KubernetesAdapterConfiguration {
     }
 
     @Bean
-    PodConditionFindingMapper podConditionFindingMapper() {
-        return new PodConditionFindingMapper();
+    PodConditionFindingEvaluator podConditionFindingEvaluator() {
+        return new PodConditionFindingEvaluator();
+    }
+
+    @Bean
+    PodConditionFindingMapper podConditionFindingMapper(PodConditionFindingEvaluator evaluator) {
+        return new PodConditionFindingMapper(evaluator);
     }
 
     @Bean
