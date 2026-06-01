@@ -6,6 +6,7 @@ import com.example.kubediagai.adapter.out.kubernetes.mapper.PodLogFindingMapper;
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.PodDiagnosticCommand;
 import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.PodLogFindingEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
@@ -30,7 +31,7 @@ class Fabric8PodLogCollectorTest {
     @Test
     void collectsLogsForSingleContainerPod() {
         FakeLogClient client = new FakeLogClient(Map.of("app", "ready"));
-        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), new PodLogFindingMapper());
+        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), podLogFindingMapper());
 
         List<ClusterFinding> findings = collector.collect(COMMAND, podWithContainers(List.of("app"), List.of()));
 
@@ -49,7 +50,7 @@ class Fabric8PodLogCollectorTest {
                 "app", "app log",
                 "sidecar", "sidecar log"
         ));
-        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), new PodLogFindingMapper());
+        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), podLogFindingMapper());
 
         List<ClusterFinding> findings = collector.collect(
                 COMMAND,
@@ -68,7 +69,7 @@ class Fabric8PodLogCollectorTest {
                 "app", "app log",
                 "init-db", "init log"
         ));
-        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), new PodLogFindingMapper());
+        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), podLogFindingMapper());
 
         List<ClusterFinding> findings = collector.collect(
                 COMMAND,
@@ -87,7 +88,7 @@ class Fabric8PodLogCollectorTest {
                 "app", "app log",
                 "sidecar", new KubernetesClientException("container log failed")
         ));
-        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), new PodLogFindingMapper());
+        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), podLogFindingMapper());
 
         List<ClusterFinding> findings = collector.collect(
                 COMMAND,
@@ -111,7 +112,7 @@ class Fabric8PodLogCollectorTest {
     @Test
     void podWithNoContainersReturnsWarningFinding() {
         FakeLogClient client = new FakeLogClient(Map.of());
-        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), new PodLogFindingMapper());
+        Fabric8PodLogCollector collector = new Fabric8PodLogCollector(client.client(), podLogFindingMapper());
 
         List<ClusterFinding> findings = collector.collect(COMMAND, podWithContainers(List.of(), List.of()));
 
@@ -133,6 +134,10 @@ class Fabric8PodLogCollectorTest {
                                 .toList())
                         .build())
                 .build();
+    }
+
+    private static PodLogFindingMapper podLogFindingMapper() {
+        return new PodLogFindingMapper(new PodLogFindingEvaluator());
     }
 
     private static final class FakeLogClient {
