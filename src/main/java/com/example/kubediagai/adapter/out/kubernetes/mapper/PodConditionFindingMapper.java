@@ -1,13 +1,19 @@
 package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import com.example.kubediagai.domain.ClusterFinding;
-import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.PodConditionDiagnosticState;
+import com.example.kubediagai.domain.diagnostic.PodConditionFindingEvaluator;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodCondition;
 import java.util.List;
-import java.util.Objects;
 
 public class PodConditionFindingMapper {
+
+    private final PodConditionFindingEvaluator evaluator;
+
+    public PodConditionFindingMapper(PodConditionFindingEvaluator evaluator) {
+        this.evaluator = evaluator;
+    }
 
     public List<ClusterFinding> map(Pod pod) {
         if (pod.getStatus() == null || pod.getStatus().getConditions() == null) {
@@ -15,18 +21,16 @@ public class PodConditionFindingMapper {
         }
 
         return pod.getStatus().getConditions().stream()
-                .filter(condition -> !"True".equals(condition.getStatus()))
-                .map(this::map)
+                .flatMap(condition -> map(condition).stream())
                 .toList();
     }
 
-    ClusterFinding map(PodCondition condition) {
-        return new ClusterFinding(
-                Severity.WARNING,
-                "Pod condition is not healthy: " + condition.getType(),
-                "status=" + condition.getStatus()
-                        + ", reason=" + Objects.requireNonNullElse(condition.getReason(), "none")
-                        + ", message=" + Objects.requireNonNullElse(condition.getMessage(), "none")
-        );
+    List<ClusterFinding> map(PodCondition condition) {
+        return evaluator.evaluate(new PodConditionDiagnosticState(
+                condition.getType(),
+                condition.getStatus(),
+                condition.getReason(),
+                condition.getMessage()
+        ));
     }
 }
