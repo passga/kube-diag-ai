@@ -2,6 +2,8 @@ package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.PodEventDiagnosticState;
+import com.example.kubediagai.domain.diagnostic.PodEventFindingEvaluator;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.ObjectReference;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -14,25 +16,31 @@ public class PodEventFindingMapper {
 
     private static final int MAX_EVENTS = 10;
 
+    private final PodEventFindingEvaluator evaluator;
+
+    public PodEventFindingMapper(PodEventFindingEvaluator evaluator) {
+        this.evaluator = evaluator;
+    }
+
     public List<ClusterFinding> map(List<Event> events, Pod pod) {
         if (events == null || events.isEmpty()) {
-            return List.of(noEventsFinding("Kubernetes returned no events for this pod"));
+            return evaluator.evaluate(List.of(PodEventDiagnosticState.noEventsAvailable()));
         }
 
         String podUid = pod.getMetadata() == null ? null : pod.getMetadata().getUid();
 
-        List<ClusterFinding> findings = events.stream()
+        List<PodEventDiagnosticState> states = events.stream()
                 .filter(event -> belongsToPod(event, podUid))
                 .sorted(Comparator.comparing(PodEventFindingMapper::eventTimestamp).reversed())
                 .limit(MAX_EVENTS)
-                .map(this::map)
+                .map(PodEventFindingMapper::map)
                 .toList();
 
-        if (findings.isEmpty()) {
-            return List.of(noEventsFinding("Kubernetes returned no events matching this pod instance"));
+        if (states.isEmpty()) {
+            return evaluator.evaluate(List.of(PodEventDiagnosticState.noMatchingEvents()));
         }
 
-        return findings;
+        return evaluator.evaluate(states);
     }
 
     public ClusterFinding mapUnavailable(KubernetesClientException exception) {
@@ -43,19 +51,13 @@ public class PodEventFindingMapper {
         );
     }
 
-    private ClusterFinding map(Event event) {
-        String type = Objects.requireNonNullElse(event.getType(), "Normal");
-        String reason = Objects.requireNonNullElse(event.getReason(), "Unknown");
-        String message = Objects.requireNonNullElse(event.getMessage(), "No message");
-        Integer count = Objects.requireNonNullElse(event.getCount(), 1);
-
-        return new ClusterFinding(
-                "Warning".equals(type) ? Severity.WARNING : Severity.INFO,
-                "Pod event: " + reason,
-                "type=" + type
-                        + ", count=" + count
-                        + ", time=" + eventTimestamp(event)
-                        + ", message=" + message
+    private static PodEventDiagnosticState map(Event event) {
+        return PodEventDiagnosticState.event(
+                event.getType(),
+                event.getReason(),
+                event.getMessage(),
+                event.getCount(),
+                eventTimestamp(event)
         );
     }
 
@@ -66,10 +68,6 @@ public class PodEventFindingMapper {
 
         ObjectReference involvedObject = event.getInvolvedObject();
         return involvedObject == null || Objects.equals(podUid, involvedObject.getUid());
-    }
-
-    private static ClusterFinding noEventsFinding(String details) {
-        return new ClusterFinding(Severity.INFO, "No pod events found", details);
     }
 
     private static String eventTimestamp(Event event) {
