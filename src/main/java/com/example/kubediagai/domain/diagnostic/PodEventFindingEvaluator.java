@@ -21,6 +21,7 @@ public class PodEventFindingEvaluator {
         return switch (state.availability()) {
             case NO_EVENTS_AVAILABLE -> noEventsFinding("Kubernetes returned no events for this pod");
             case NO_MATCHING_EVENTS -> noEventsFinding("Kubernetes returned no events matching this pod instance");
+            case EVENTS_UNAVAILABLE -> eventsUnavailableFinding(state.errorMessage());
             case EVENT -> eventFinding(state);
         };
     }
@@ -44,5 +45,13 @@ public class PodEventFindingEvaluator {
 
     private static ClusterFinding noEventsFinding(String details) {
         return new ClusterFinding(Severity.INFO, "No pod events found", details);
+    }
+
+    private static ClusterFinding eventsUnavailableFinding(String errorMessage) {
+        return new ClusterFinding(
+                Severity.WARNING,
+                "Pod events unavailable",
+                Objects.requireNonNullElse(errorMessage, "No error details available")
+        );
     }
 }

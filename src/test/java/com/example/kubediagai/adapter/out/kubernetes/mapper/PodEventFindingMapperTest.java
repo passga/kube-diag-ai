@@ -3,10 +3,13 @@ package com.example.kubediagai.adapter.out.kubernetes.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.kubediagai.domain.ClusterFinding;
+import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.PodEventDiagnosticState;
 import com.example.kubediagai.domain.diagnostic.PodEventFindingEvaluator;
 import io.fabric8.kubernetes.api.model.EventBuilder;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -85,6 +88,39 @@ class PodEventFindingMapperTest {
                 .doesNotContain("Pod event: Event1");
     }
 
+    @Test
+    void should_translate_kubernetes_exception_message_to_unavailable_event_diagnostic_state() {
+        var evaluator = new RecordingPodEventFindingEvaluator();
+        var mapper = new PodEventFindingMapper(evaluator);
+
+        ClusterFinding finding = mapper.mapUnavailable(new KubernetesClientException("failed"));
+
+        assertThat(evaluator.states).containsExactly(PodEventDiagnosticState.eventsUnavailable("failed"));
+        assertThat(finding).isEqualTo(evaluator.finding);
+    }
+
+    @Test
+    void should_translate_missing_kubernetes_exception_message_to_unavailable_event_diagnostic_state() {
+        var evaluator = new RecordingPodEventFindingEvaluator();
+        var mapper = new PodEventFindingMapper(evaluator);
+
+        ClusterFinding finding = mapper.mapUnavailable(new KubernetesClientException((String) null));
+
+        assertThat(evaluator.states).containsExactly(PodEventDiagnosticState.eventsUnavailable(null));
+        assertThat(finding).isEqualTo(evaluator.finding);
+    }
+
+    @Test
+    void should_translate_null_kubernetes_exception_to_unavailable_event_diagnostic_state() {
+        var evaluator = new RecordingPodEventFindingEvaluator();
+        var mapper = new PodEventFindingMapper(evaluator);
+
+        ClusterFinding finding = mapper.mapUnavailable(null);
+
+        assertThat(evaluator.states).containsExactly(PodEventDiagnosticState.eventsUnavailable(null));
+        assertThat(finding).isEqualTo(evaluator.finding);
+    }
+
     private static io.fabric8.kubernetes.api.model.Pod pod(String uid) {
         return new PodBuilder()
                 .withNewMetadata()
@@ -109,5 +145,17 @@ class PodEventFindingMapperTest {
                 .withLastTimestamp(lastTimestamp)
                 .withInvolvedObject(involvedPod(uid))
                 .build();
+    }
+
+    private static class RecordingPodEventFindingEvaluator extends PodEventFindingEvaluator {
+
+        private final ClusterFinding finding = new ClusterFinding(Severity.INFO, "message", "details");
+        private List<PodEventDiagnosticState> states;
+
+        @Override
+        public List<ClusterFinding> evaluate(List<PodEventDiagnosticState> states) {
+            this.states = states;
+            return List.of(finding);
+        }
     }
 }
