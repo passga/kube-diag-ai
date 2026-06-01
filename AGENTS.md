@@ -241,3 +241,19 @@ Do not introduce new dependencies unless they are required to solve the current 
 Prefer existing project dependencies when possible.
 
 New dependencies must provide clear value and remain aligned with the project roadmap.
+
+## Testing Conventions
+
+Test method names should describe business behavior.
+
+Preferred format:
+
+should_<expected_behavior>_when_<condition>
+
+Examples:
+
+should_return_healthy_when_pod_is_running_and_ready
+should_return_unhealthy_when_waiting_reason_is_crashloopbackoff
+should_return_warning_when_pod_is_terminating
+
+Avoid names that only describe implementation details.
