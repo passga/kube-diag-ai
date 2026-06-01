@@ -1,6 +1,5 @@
 package com.example.kubediagai.adapter.out.kubernetes;
 
-import com.example.kubediagai.application.port.out.KubernetesDiagnosticsPort;
 import com.example.kubediagai.adapter.out.kubernetes.classifier.KubernetesSeverityClassifier;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodEventCollector;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodLogCollector;
@@ -10,6 +9,8 @@ import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8PodToClusterF
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodConditionFindingMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodEventFindingMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodLogFindingMapper;
+import com.example.kubediagai.application.port.out.KubernetesDiagnosticsPort;
+import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.springframework.context.annotation.Bean;
@@ -90,8 +91,13 @@ public class KubernetesAdapterConfiguration {
     }
 
     @Bean
-    Fabric8PodSummaryMapper fabric8PodSummaryMapper() {
-        return new Fabric8PodSummaryMapper();
+    PodHealthEvaluator podHealthEvaluator() {
+        return new PodHealthEvaluator();
+    }
+
+    @Bean
+    Fabric8PodSummaryMapper fabric8PodSummaryMapper(PodHealthEvaluator podHealthEvaluator) {
+        return new Fabric8PodSummaryMapper(podHealthEvaluator);
     }
 
     @Bean

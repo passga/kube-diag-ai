@@ -1,15 +1,22 @@
 package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
-import com.example.kubediagai.domain.PodHealthStatus;
 import com.example.kubediagai.domain.PodSummary;
-import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
+import com.example.kubediagai.domain.diagnostic.PodContainerRuntimeState;
+import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodRuntimeState;
+import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
-import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
 public class Fabric8PodSummaryMapper {
+
+    private final PodHealthEvaluator podHealthEvaluator;
+
+    public Fabric8PodSummaryMapper(PodHealthEvaluator podHealthEvaluator) {
+        this.podHealthEvaluator = podHealthEvaluator;
+    }
 
     public PodSummary map(Pod pod) {
         String namespace = pod.getMetadata() == null ? null : pod.getMetadata().getNamespace();
@@ -17,30 +24,40 @@ public class Fabric8PodSummaryMapper {
         boolean terminating = pod.getMetadata() != null && pod.getMetadata().getDeletionTimestamp() != null;
         String phase = pod.getStatus() == null ? null : pod.getStatus().getPhase();
         boolean ready = isReady(pod);
-        int restartCount = containerStatuses(pod)
-                .map(ContainerStatus::getRestartCount)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
-        List<String> waitingReasons = containerStatuses(pod)
-                .map(ContainerStatus::getState)
-                .filter(Objects::nonNull)
-                .map(state -> state.getWaiting())
-                .filter(Objects::nonNull)
-                .map(ContainerStateWaiting::getReason)
-                .filter(reason -> reason != null && !reason.isBlank())
-                .toList();
-        String waitingReason = selectWaitingReason(waitingReasons);
+        PodRuntimeState runtimeState = new PodRuntimeState(
+                phase,
+                ready,
+                containerStatuses(pod)
+                        .map(Fabric8PodSummaryMapper::containerRuntimeState)
+                        .toList(),
+                terminating
+        );
 
         return new PodSummary(
                 namespace,
                 name,
-                phase,
-                ready,
-                restartCount,
-                waitingReason,
-                healthStatus(phase, ready, restartCount, waitingReasons, terminating)
+                runtimeState.phase(),
+                runtimeState.ready(),
+                runtimeState.restartCount(),
+                runtimeState.selectedWaitingReason(),
+                podHealthEvaluator.evaluate(runtimeState)
         );
+    }
+
+    private static PodContainerRuntimeState containerRuntimeState(ContainerStatus containerStatus) {
+        return new PodContainerRuntimeState(
+                Objects.requireNonNullElse(containerStatus.getRestartCount(), 0),
+                waitingReason(containerStatus)
+        );
+    }
+
+    private static String waitingReason(ContainerStatus containerStatus) {
+        return Stream.ofNullable(containerStatus.getState())
+                .map(ContainerState::getWaiting)
+                .filter(Objects::nonNull)
+                .map(waiting -> waiting.getReason())
+                .findFirst()
+                .orElse(null);
     }
 
     private static boolean isReady(Pod pod) {
@@ -67,53 +84,4 @@ public class Fabric8PodSummaryMapper {
         );
     }
 
-    private static PodHealthStatus healthStatus(
-            String phase,
-            boolean ready,
-            int restartCount,
-            List<String> waitingReasons,
-            boolean terminating
-    ) {
-        if ("Failed".equals(phase)
-                || waitingReasons.stream().anyMatch(Fabric8PodSummaryMapper::isUnhealthyWaitingReason)) {
-            return PodHealthStatus.UNHEALTHY;
-        }
-
-        if (terminating) {
-            return PodHealthStatus.WARNING;
-        }
-
-        if ("Succeeded".equals(phase)) {
-            return PodHealthStatus.HEALTHY;
-        }
-
-        if ("Pending".equals(phase)
-                || "Unknown".equals(phase)
-                || !ready
-                || restartCount > 0
-                || !waitingReasons.isEmpty()) {
-            return PodHealthStatus.WARNING;
-        }
-
-        if ("Running".equals(phase)) {
-            return PodHealthStatus.HEALTHY;
-        }
-
-        return PodHealthStatus.WARNING;
-    }
-
-    private static String selectWaitingReason(List<String> waitingReasons) {
-        return waitingReasons.stream()
-                .filter(Fabric8PodSummaryMapper::isUnhealthyWaitingReason)
-                .findFirst()
-                .or(() -> waitingReasons.stream().findFirst())
-                .orElse(null);
-    }
-
-    private static boolean isUnhealthyWaitingReason(String waitingReason) {
-        return switch (Objects.requireNonNullElse(waitingReason, "")) {
-            case "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull" -> true;
-            default -> false;
-        };
-    }
 }

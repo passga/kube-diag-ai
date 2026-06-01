@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.kubediagai.domain.PodHealthStatus;
 import com.example.kubediagai.domain.PodSummary;
+import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
 import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ContainerStatusBuilder;
@@ -15,11 +16,11 @@ import org.junit.jupiter.api.Test;
 
 class Fabric8PodSummaryMapperTest {
 
-    private final Fabric8PodSummaryMapper mapper = new Fabric8PodSummaryMapper();
+    private final Fabric8PodSummaryMapper mapper = new Fabric8PodSummaryMapper(new PodHealthEvaluator());
 
     @Test
-    void mapsHealthyPod() {
-        PodSummary summary = mapper.map(pod("demo", "pod-ok", "Running", true, container("app", true, 0, null)));
+    void should_map_pod_identity_and_health_when_pod_is_running_ready_and_stable() {
+        PodSummary summary = mapper.map(runningReadyPodNamed("pod-ok", stableContainer()));
 
         assertThat(summary).isEqualTo(new PodSummary(
                 "demo",
@@ -33,26 +34,18 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsRunningReadyPodWithoutRestartsOrWaitingReasonAsHealthy() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-healthy",
-                "Running",
-                true,
-                container("app", true, 0, null)
+    void should_report_healthy_when_running_ready_pod_has_no_restarts_or_waiting_reason() {
+        PodSummary summary = mapper.map(runningReadyPod(
+                stableContainer()
         ));
 
         assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.HEALTHY);
     }
 
     @Test
-    void mapsCrashLoopBackOffPodAsUnhealthy() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-crashloop",
-                "Running",
-                false,
-                container("app", false, 5, "CrashLoopBackOff")
+    void should_report_unhealthy_when_container_is_in_crash_loop_backoff() {
+        PodSummary summary = mapper.map(runningNotReadyPod(
+                waitingContainer(5, "CrashLoopBackOff")
         ));
 
         assertThat(summary.restartCount()).isEqualTo(5);
@@ -61,13 +54,9 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsImagePullBackOffPodAsUnhealthy() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-imagepullbackoff",
-                "Pending",
-                false,
-                container("app", false, 0, "ImagePullBackOff")
+    void should_report_unhealthy_when_container_image_pull_is_backing_off() {
+        PodSummary summary = mapper.map(pendingNotReadyPod(
+                waitingContainer("ImagePullBackOff")
         ));
 
         assertThat(summary.waitingReason()).isEqualTo("ImagePullBackOff");
@@ -75,14 +64,10 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsPodAsUnhealthyWhenLaterContainerHasCrashLoopBackOff() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-multi-container",
-                "Pending",
-                false,
-                container("sidecar", false, 0, "ContainerCreating"),
-                container("app", false, 2, "CrashLoopBackOff")
+    void should_select_unhealthy_waiting_reason_when_later_container_is_crash_looping() {
+        PodSummary summary = mapper.map(pendingNotReadyPod(
+                waitingContainer("ContainerCreating"),
+                waitingContainer(2, "CrashLoopBackOff")
         ));
 
         assertThat(summary.waitingReason()).isEqualTo("CrashLoopBackOff");
@@ -90,13 +75,9 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsSucceededNotReadyPodAsHealthy() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-completed",
-                "Succeeded",
-                false,
-                container("job", false, 0, null)
+    void should_report_healthy_when_pod_succeeded_even_if_not_ready() {
+        PodSummary summary = mapper.map(succeededPod(
+                stableContainer()
         ));
 
         assertThat(summary.ready()).isFalse();
@@ -104,14 +85,9 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsTerminatingRunningReadyPodAsWarning() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-terminating",
-                "Running",
-                true,
-                "2026-05-29T15:22:36Z",
-                container("app", true, 0, null)
+    void should_report_warning_when_running_ready_pod_is_terminating() {
+        PodSummary summary = mapper.map(terminatingPod(
+                stableContainer()
         ));
 
         assertThat(summary.ready()).isTrue();
@@ -119,28 +95,17 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsInitContainerImagePullBackOffPodAsUnhealthy() {
-        PodSummary summary = mapper.map(podWithInitContainers(
-                "demo",
-                "pod-init-imagepullbackoff",
-                "Pending",
-                false,
-                new ContainerStatus[]{container("app", false, 0, null)},
-                new ContainerStatus[]{container("init-db", false, 0, "ImagePullBackOff")}
-        ));
+    void should_report_unhealthy_when_init_container_image_pull_is_backing_off() {
+        PodSummary summary = mapper.map(pendingNotReadyPodWithImagePullBackOffInitContainer());
 
         assertThat(summary.waitingReason()).isEqualTo("ImagePullBackOff");
         assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.UNHEALTHY);
     }
 
     @Test
-    void mapsRestartedPodAsWarning() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-restarted",
-                "Running",
-                true,
-                container("app", true, 1, null)
+    void should_report_warning_when_running_ready_pod_has_restarts() {
+        PodSummary summary = mapper.map(runningReadyPod(
+                restartedContainer()
         ));
 
         assertThat(summary.restartCount()).isEqualTo(1);
@@ -148,31 +113,49 @@ class Fabric8PodSummaryMapperTest {
     }
 
     @Test
-    void mapsNotReadyPodAsWarning() {
-        PodSummary summary = mapper.map(pod(
-                "demo",
-                "pod-not-ready",
-                "Running",
-                false,
-                container("app", false, 0, null)
+    void should_report_warning_when_running_pod_is_not_ready() {
+        PodSummary summary = mapper.map(runningNotReadyPod(
+                stableContainer()
         ));
 
         assertThat(summary.ready()).isFalse();
         assertThat(summary.healthStatus()).isEqualTo(PodHealthStatus.WARNING);
     }
 
+    private static Pod runningReadyPod(ContainerStatus... containerStatuses) {
+        return runningReadyPodNamed("pod", containerStatuses);
+    }
+
+    private static Pod runningReadyPodNamed(String name, ContainerStatus... containerStatuses) {
+        return pod(name, "Running", true, containerStatuses);
+    }
+
+    private static Pod runningNotReadyPod(ContainerStatus... containerStatuses) {
+        return pod("pod", "Running", false, containerStatuses);
+    }
+
+    private static Pod pendingNotReadyPod(ContainerStatus... containerStatuses) {
+        return pod("pod", "Pending", false, containerStatuses);
+    }
+
+    private static Pod succeededPod(ContainerStatus... containerStatuses) {
+        return pod("pod", "Succeeded", false, containerStatuses);
+    }
+
+    private static Pod terminatingPod(ContainerStatus... containerStatuses) {
+        return pod("pod", "Running", true, "2026-05-29T15:22:36Z", containerStatuses);
+    }
+
     private static Pod pod(
-            String namespace,
             String name,
             String phase,
             boolean ready,
             ContainerStatus... containerStatuses
     ) {
-        return pod(namespace, name, phase, ready, null, containerStatuses);
+        return pod(name, phase, ready, null, containerStatuses);
     }
 
     private static Pod pod(
-            String namespace,
             String name,
             String phase,
             boolean ready,
@@ -180,7 +163,6 @@ class Fabric8PodSummaryMapperTest {
             ContainerStatus... containerStatuses
     ) {
         return podWithInitContainers(
-                namespace,
                 name,
                 phase,
                 ready,
@@ -190,27 +172,18 @@ class Fabric8PodSummaryMapperTest {
         );
     }
 
-    private static Pod podWithInitContainers(
-            String namespace,
-            String name,
-            String phase,
-            boolean ready,
-            ContainerStatus[] containerStatuses,
-            ContainerStatus[] initContainerStatuses
-    ) {
+    private static Pod pendingNotReadyPodWithImagePullBackOffInitContainer() {
         return podWithInitContainers(
-                namespace,
-                name,
-                phase,
-                ready,
+                "pod",
+                "Pending",
+                false,
                 null,
-                containerStatuses,
-                initContainerStatuses
+                new ContainerStatus[]{stableContainer()},
+                new ContainerStatus[]{waitingContainer("ImagePullBackOff")}
         );
     }
 
     private static Pod podWithInitContainers(
-            String namespace,
             String name,
             String phase,
             boolean ready,
@@ -220,7 +193,7 @@ class Fabric8PodSummaryMapperTest {
     ) {
         return new PodBuilder()
                 .withNewMetadata()
-                .withNamespace(namespace)
+                .withNamespace("demo")
                 .withName(name)
                 .withDeletionTimestamp(deletionTimestamp)
                 .endMetadata()
@@ -236,10 +209,25 @@ class Fabric8PodSummaryMapperTest {
                 .build();
     }
 
-    private static ContainerStatus container(String name, boolean ready, int restartCount, String waitingReason) {
+    private static ContainerStatus stableContainer() {
+        return container(0, null);
+    }
+
+    private static ContainerStatus restartedContainer() {
+        return container(1, null);
+    }
+
+    private static ContainerStatus waitingContainer(String waitingReason) {
+        return waitingContainer(0, waitingReason);
+    }
+
+    private static ContainerStatus waitingContainer(int restartCount, String waitingReason) {
+        return container(restartCount, waitingReason);
+    }
+
+    private static ContainerStatus container(int restartCount, String waitingReason) {
         ContainerStatusBuilder builder = new ContainerStatusBuilder()
-                .withName(name)
-                .withReady(ready)
+                .withName("container")
                 .withRestartCount(restartCount);
 
         if (waitingReason != null) {
