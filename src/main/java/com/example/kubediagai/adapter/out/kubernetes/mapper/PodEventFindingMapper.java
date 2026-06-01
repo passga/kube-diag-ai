@@ -1,7 +1,6 @@
 package com.example.kubediagai.adapter.out.kubernetes.mapper;
 
 import com.example.kubediagai.domain.ClusterFinding;
-import com.example.kubediagai.domain.Severity;
 import com.example.kubediagai.domain.diagnostic.PodEventDiagnosticState;
 import com.example.kubediagai.domain.diagnostic.PodEventFindingEvaluator;
 import io.fabric8.kubernetes.api.model.Event;
@@ -44,11 +43,8 @@ public class PodEventFindingMapper {
     }
 
     public ClusterFinding mapUnavailable(KubernetesClientException exception) {
-        return new ClusterFinding(
-                Severity.WARNING,
-                "Pod events unavailable",
-                Objects.requireNonNullElse(exception.getMessage(), "No error details available")
-        );
+        String errorMessage = exception == null ? null : exception.getMessage();
+        return evaluator.evaluate(List.of(PodEventDiagnosticState.eventsUnavailable(errorMessage))).get(0);
     }
 
     private static PodEventDiagnosticState map(Event event) {

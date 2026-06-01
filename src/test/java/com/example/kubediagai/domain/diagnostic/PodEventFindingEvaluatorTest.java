@@ -34,6 +34,26 @@ class PodEventFindingEvaluatorTest {
     }
 
     @Test
+    void should_return_warning_finding_when_events_are_unavailable() {
+        List<ClusterFinding> findings = evaluator.evaluate(List.of(PodEventDiagnosticState.eventsUnavailable("failed")));
+
+        assertThat(findings).singleElement().satisfies(finding -> {
+            assertThat(finding.severity()).isEqualTo(Severity.WARNING);
+            assertThat(finding.message()).isEqualTo("Pod events unavailable");
+            assertThat(finding.details()).isEqualTo("failed");
+        });
+    }
+
+    @Test
+    void should_use_fallback_error_message_when_events_unavailable_error_message_is_missing() {
+        List<ClusterFinding> findings = evaluator.evaluate(List.of(PodEventDiagnosticState.eventsUnavailable(null)));
+
+        assertThat(findings).singleElement()
+                .extracting(ClusterFinding::details)
+                .isEqualTo("No error details available");
+    }
+
+    @Test
     void should_return_warning_finding_when_event_type_is_warning() {
         List<ClusterFinding> findings = evaluator.evaluate(List.of(PodEventDiagnosticState.event(
                 "Warning",
