@@ -4,55 +4,58 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.kubediagai.domain.ClusterFinding;
 import com.example.kubediagai.domain.Severity;
+import com.example.kubediagai.domain.diagnostic.PodLogDiagnosticState;
+import com.example.kubediagai.domain.diagnostic.PodLogFindingEvaluator;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PodLogFindingMapperTest {
 
-    private final PodLogFindingMapper mapper = new PodLogFindingMapper();
+    private final RecordingPodLogFindingEvaluator evaluator = new RecordingPodLogFindingEvaluator();
+    private final PodLogFindingMapper mapper = new PodLogFindingMapper(evaluator);
 
     @Test
-    void mapsRecentLogsToInfoFinding() {
-        List<ClusterFinding> findings = mapper.map("app", """
-                first line
-                second line
-                """);
+    void should_translate_container_name_and_logs_to_diagnostic_state() {
+        List<ClusterFinding> findings = mapper.map("app", "first line");
 
-        assertThat(findings).singleElement().satisfies(finding -> {
-            assertThat(finding.severity()).isEqualTo(Severity.INFO);
-            assertThat(finding.message()).isEqualTo("Recent logs for container app");
-            assertThat(finding.details()).contains("first line", "second line");
-        });
+        assertThat(evaluator.state).isEqualTo(PodLogDiagnosticState.logsAvailable("app", "first line"));
+        assertThat(findings).containsExactly(evaluator.finding);
     }
 
     @Test
-    void mapsBlankLogsToEmptyFinding() {
-        List<ClusterFinding> findings = mapper.map("app", "   ");
+    void should_translate_kubernetes_exception_message_to_unavailable_diagnostic_state() {
+        ClusterFinding finding = mapper.mapUnavailable("app", new KubernetesClientException("failed"));
 
-        assertThat(findings).singleElement().satisfies(finding -> {
-            assertThat(finding.severity()).isEqualTo(Severity.INFO);
-            assertThat(finding.message()).isEqualTo("Recent logs are empty for container app");
-        });
+        assertThat(evaluator.state).isEqualTo(PodLogDiagnosticState.logsUnavailable("app", "failed"));
+        assertThat(finding).isEqualTo(evaluator.finding);
     }
 
     @Test
-    void mapsUnavailableLogsToWarningFinding() {
-        ClusterFinding finding = mapper.mapUnavailable(
-                "app",
-                new io.fabric8.kubernetes.client.KubernetesClientException("failed")
-        );
+    void should_translate_missing_kubernetes_exception_message_to_unavailable_diagnostic_state() {
+        ClusterFinding finding = mapper.mapUnavailable("app", new KubernetesClientException((String) null));
 
-        assertThat(finding.severity()).isEqualTo(Severity.WARNING);
-        assertThat(finding.message()).isEqualTo("Recent logs unavailable for container app");
-        assertThat(finding.details()).isEqualTo("failed");
+        assertThat(evaluator.state).isEqualTo(PodLogDiagnosticState.logsUnavailable("app", null));
+        assertThat(finding).isEqualTo(evaluator.finding);
     }
 
     @Test
-    void mapsNoContainersToWarningFinding() {
+    void should_translate_no_containers_to_diagnostic_state() {
         ClusterFinding finding = mapper.mapNoContainers();
 
-        assertThat(finding.severity()).isEqualTo(Severity.WARNING);
-        assertThat(finding.message()).isEqualTo("Pod has no containers");
-        assertThat(finding.details()).contains("No regular or init containers");
+        assertThat(evaluator.state).isEqualTo(PodLogDiagnosticState.noContainers());
+        assertThat(finding).isEqualTo(evaluator.finding);
+    }
+
+    private static class RecordingPodLogFindingEvaluator extends PodLogFindingEvaluator {
+
+        private final ClusterFinding finding = new ClusterFinding(Severity.INFO, "message", "details");
+        private PodLogDiagnosticState state;
+
+        @Override
+        public ClusterFinding evaluate(PodLogDiagnosticState state) {
+            this.state = state;
+            return finding;
+        }
     }
 }

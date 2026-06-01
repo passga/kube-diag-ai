@@ -14,6 +14,7 @@ import com.example.kubediagai.domain.diagnostic.ContainerStatusFindingEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodConditionFindingEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodEventFindingEvaluator;
 import com.example.kubediagai.domain.diagnostic.PodHealthEvaluator;
+import com.example.kubediagai.domain.diagnostic.PodLogFindingEvaluator;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.springframework.context.annotation.Bean;
@@ -66,8 +67,13 @@ public class KubernetesAdapterConfiguration {
     }
 
     @Bean
-    PodLogFindingMapper podLogFindingMapper() {
-        return new PodLogFindingMapper();
+    PodLogFindingEvaluator podLogFindingEvaluator() {
+        return new PodLogFindingEvaluator();
+    }
+
+    @Bean
+    PodLogFindingMapper podLogFindingMapper(PodLogFindingEvaluator evaluator) {
+        return new PodLogFindingMapper(evaluator);
     }
 
     @Bean
