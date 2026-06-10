@@ -206,6 +206,16 @@ Namespaces
 
 instead of requiring users to know internal Kubernetes resource names.
 
+REST controllers should expose REST DTOs when appropriate instead of directly exposing domain or application models as public HTTP contracts.
+
+Simple REST DTO mapping can stay simple. For trivial response mapping, a static `from(...)` factory on the response record is enough; do not introduce dedicated mapper classes unless the mapping has meaningful complexity.
+
+Kubernetes and Fabric8 objects must be mapped from the Kubernetes object structure. For example, use `getMetadata().getName()` for `metadata.name`.
+
+Do not use Fabric8 resource helper names such as `getFullResourceName()` when the goal is to return the Kubernetes object name.
+
+Keep hexagonal architecture pragmatic. Create ports and mappers at meaningful technical boundaries, but avoid over-engineering simple transformations.
+
 ---
 
 ## AI Features

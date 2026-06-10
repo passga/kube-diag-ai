@@ -84,6 +84,7 @@ The current implementation provides a first technical foundation:
 - Maven wrapper
 - lightweight hexagonal architecture
 - REST endpoint: `POST /api/pods/diagnose`
+- REST endpoint: `GET /api/namespaces`
 - REST endpoint: `GET /api/namespaces/{namespace}/pods`
 - Fabric8 Kubernetes client integration
 - read-only Kubernetes diagnostics through a Kubernetes outbound port
@@ -107,6 +108,7 @@ The current implementation provides a first technical foundation:
 - Makefile workflow:
   - `dev-up`
   - `run`
+  - `smoke-list-namespace`
   - `smoke-test`
   - `wait-fixtures`
   - `kube-status`
@@ -143,6 +145,25 @@ Current endpoint:
 
 ```http
 POST /api/pods/diagnose
+```
+
+Namespace discovery endpoint:
+
+```http
+GET /api/namespaces
+```
+
+It returns visible Kubernetes namespaces with their name and status.
+
+Example response:
+
+```json
+[
+  {
+    "name": "demo",
+    "status": "Active"
+  }
+]
 ```
 
 Namespace Pod summary endpoint:
@@ -189,20 +210,24 @@ my-app-78d9cbb6c9-vr42m
 
 Supported workflow:
 
-1. List Pods in a namespace with their health status.
-2. Select a problematic Pod.
-3. Run a detailed diagnostic on that Pod.
+1. List namespaces.
+2. List Pods in a selected namespace with their health status.
+3. Diagnose a selected Pod.
 4. Later, diagnose a workload directly by Deployment, StatefulSet, or DaemonSet name.
 
-Pod summary endpoint:
+Pod navigation endpoints:
 
 ```http
+GET /api/namespaces
 GET /api/namespaces/{namespace}/pods
 ```
 
 Example workflow:
 
 ```text
+GET /api/namespaces
+  -> select a namespace
+
 GET /api/namespaces/demo/pods
   -> find unhealthy Pods
 
