@@ -1,6 +1,8 @@
 package com.example.kubediagai.adapter.in.rest;
 
+import com.example.kubediagai.adapter.in.rest.dto.NamespaceResponse;
 import com.example.kubediagai.application.port.in.ListNamespacePodsUseCase;
+import com.example.kubediagai.application.port.in.ListNamespacesUseCase;
 import com.example.kubediagai.domain.PodSummary;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -19,13 +21,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Validated
 @RestController
-@RequestMapping("/api/namespaces/{namespace}/pods")
-public class NamespacePodController {
+@RequestMapping("/api/namespaces")
+public class NamespaceController {
 
     private final ListNamespacePodsUseCase listNamespacePodsUseCase;
+    private final ListNamespacesUseCase listNamespacesUseCase;
 
-    public NamespacePodController(ListNamespacePodsUseCase listNamespacePodsUseCase) {
+    public NamespaceController(ListNamespacePodsUseCase listNamespacePodsUseCase, ListNamespacesUseCase listNamespacesUseCase) {
         this.listNamespacePodsUseCase = listNamespacePodsUseCase;
+        this.listNamespacesUseCase = listNamespacesUseCase;
+    }
+
+    @GetMapping
+    public List<NamespaceResponse> listNamespaces() {
+        return listNamespacesUseCase.listNamespaces()
+                .stream()
+                .map(NamespaceResponse::from)
+                .toList();
     }
 
     @Operation(
@@ -59,7 +71,7 @@ public class NamespacePodController {
             ),
             @ApiResponse(responseCode = "500", description = "Unexpected error")
     })
-    @GetMapping
+    @GetMapping("/{namespace}/pods")
     public List<PodSummary> listPods(@PathVariable @NotBlank String namespace) {
         return listNamespacePodsUseCase.listPods(namespace);
     }

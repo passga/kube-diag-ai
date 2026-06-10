@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.kubediagai.application.port.in.ListNamespacePodsUseCase;
+import com.example.kubediagai.application.port.in.ListNamespacesUseCase;
+import com.example.kubediagai.domain.NamespaceSummary;
 import com.example.kubediagai.domain.PodHealthStatus;
 import com.example.kubediagai.domain.PodSummary;
 import java.util.List;
@@ -15,20 +17,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-class NamespacePodControllerTest {
+class NamespaceControllerTest {
 
-    private final StubListNamespacePodsUseCase useCase = new StubListNamespacePodsUseCase();
+    private final StubListNamespacePodsUseCase namespacePodsUseCase = new StubListNamespacePodsUseCase();
+    private final StubListNamespacesUseCase listNamespacesUseCase = new StubListNamespacesUseCase();
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new NamespacePodController(useCase)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new NamespaceController(namespacePodsUseCase, listNamespacesUseCase)).build();
     }
 
     @Test
-    void listsNamespacePods() throws Exception {
-        useCase.result = List.of(new PodSummary(
+    void should_return_namespace_pods_when_namespace_exists() throws Exception {
+        namespacePodsUseCase.result = List.of(new PodSummary(
                 "demo",
                 "pod-crashloop",
                 "Running",
@@ -49,7 +52,20 @@ class NamespacePodControllerTest {
                 .andExpect(jsonPath("$[0].waitingReason").value("CrashLoopBackOff"))
                 .andExpect(jsonPath("$[0].healthStatus").value("UNHEALTHY"));
 
-        assertThat(useCase.namespace).isEqualTo("demo");
+        assertThat(namespacePodsUseCase.namespace).isEqualTo("demo");
+    }
+
+    @Test
+    void should_return_namespaces_when_namespaces_exist() throws Exception {
+        listNamespacesUseCase.result = List.of(new NamespaceSummary(
+                "demo",
+                "Running"
+        ));
+
+        mockMvc.perform(get("/api/namespaces"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("demo"))
+                .andExpect(jsonPath("$[0].status").value("Running"));
     }
 
     private static class StubListNamespacePodsUseCase implements ListNamespacePodsUseCase {
@@ -60,6 +76,16 @@ class NamespacePodControllerTest {
         @Override
         public List<PodSummary> listPods(String namespace) {
             this.namespace = namespace;
+            return result;
+        }
+    }
+
+    private static class StubListNamespacesUseCase implements ListNamespacesUseCase {
+
+        private List<NamespaceSummary> result = List.of();
+
+        @Override
+        public List<NamespaceSummary> listNamespaces() {
             return result;
         }
     }
