@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class NamespaceSummaryDiscoverServiceTest {
     @Test
     void should_delegate_namespace_discovery_to_kubernetes_port() {
-        NamespaceSummary namespaceSummary = new NamespaceSummary("demo", "OK");
+        NamespaceSummary namespaceSummary = new NamespaceSummary("demo", "Active");
         KubernetesNamespaceDiscoverPort port = () -> List.of(namespaceSummary);
 
         ListNamespacesService service = new ListNamespacesService(port);

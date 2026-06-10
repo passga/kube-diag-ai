@@ -59,13 +59,13 @@ class NamespaceControllerTest {
     void should_return_namespaces_when_namespaces_exist() throws Exception {
         listNamespacesUseCase.result = List.of(new NamespaceSummary(
                 "demo",
-                "Running"
+                "Active"
         ));
 
         mockMvc.perform(get("/api/namespaces"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("demo"))
-                .andExpect(jsonPath("$[0].status").value("Running"));
+                .andExpect(jsonPath("$[0].status").value("Active"));
     }
 
     private static class StubListNamespacePodsUseCase implements ListNamespacePodsUseCase {
