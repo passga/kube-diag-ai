@@ -10,7 +10,7 @@ public class ListNamespacesService implements ListNamespacesUseCase {
     private final KubernetesNamespaceDiscoverPort kubernetesNamespaceDiscoverPort;
 
     public ListNamespacesService(KubernetesNamespaceDiscoverPort kubernetesNamespaceDiscoverPort){
-        this.kubernetesNamespaceDiscoverPort=kubernetesNamespaceDiscoverPort;
+        this.kubernetesNamespaceDiscoverPort = kubernetesNamespaceDiscoverPort;
     }
 
     @Override
