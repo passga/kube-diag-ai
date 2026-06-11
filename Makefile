@@ -24,6 +24,14 @@ smoke-test: wait-fixtures
 	curl -fsS -X POST $(APP_URL)/api/pods/diagnose -H 'Content-Type: application/json' -d '{"namespace":"$(DEMO_NAMESPACE)","podName":"pod-crashloop"}'
 	curl -fsS -X POST $(APP_URL)/api/pods/diagnose -H 'Content-Type: application/json' -d '{"namespace":"$(DEMO_NAMESPACE)","podName":"pod-imagepullbackoff"}'
 
+smoke-list-namespace: wait-fixtures
+	@response_file=$$(mktemp); \
+	trap 'rm -f "$$response_file"' EXIT; \
+	curl -fsS -X GET $(APP_URL)/api/namespaces > "$$response_file"; \
+	grep -q '"name":"demo"' "$$response_file"; \
+	grep -q '"status":"' "$$response_file";
+
+
 smoke-test-pod-summary: wait-fixtures
 	@response_file=$$(mktemp); \
 	trap 'rm -f "$$response_file"' EXIT; \

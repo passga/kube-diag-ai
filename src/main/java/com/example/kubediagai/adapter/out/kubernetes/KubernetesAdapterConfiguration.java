@@ -3,6 +3,7 @@ package com.example.kubediagai.adapter.out.kubernetes;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodEventCollector;
 import com.example.kubediagai.adapter.out.kubernetes.collector.Fabric8PodLogCollector;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.ContainerStatusFindingMapper;
+import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8NamespaceMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8PodSummaryMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.Fabric8PodToClusterFindingMapper;
 import com.example.kubediagai.adapter.out.kubernetes.mapper.PodConditionFindingMapper;
@@ -123,10 +124,23 @@ public class KubernetesAdapterConfiguration {
     }
 
     @Bean
+    Fabric8NamespaceMapper fabric8NamespaceMapper() {
+        return new Fabric8NamespaceMapper();
+    }
+
+    @Bean
     Fabric8KubernetesPodSummaryAdapter kubernetesPodSummaryPort(
             KubernetesClient kubernetesClient,
             Fabric8PodSummaryMapper mapper
     ) {
         return new Fabric8KubernetesPodSummaryAdapter(kubernetesClient, mapper);
+    }
+
+    @Bean
+    Fabric8KubernetesNamespaceDiscoverAdapter kubernetesNamespaceDiscoverPort(
+            KubernetesClient kubernetesClient,
+            Fabric8NamespaceMapper mapper
+    ) {
+        return new Fabric8KubernetesNamespaceDiscoverAdapter(kubernetesClient, mapper);
     }
 }
